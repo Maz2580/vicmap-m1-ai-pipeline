@@ -89,18 +89,41 @@ def download_data(url: str) -> Path:
         logger.error(f"Download failed: {e}")
         raise
 
+def _is_safe_member(extract_dir: Path, member_name: str) -> bool:
+    """Reject zip members that resolve outside `extract_dir` (zip-slip guard).
+
+    A malicious archive can contain entries like `../../etc/passwd` or
+    `..\\..\\Windows\\System32\\evil.bat` that, on extraction, escape the
+    intended destination. We resolve each member's target path and confirm
+    it lives under `extract_dir`. Security audit H-3.
+    """
+    target = (extract_dir / member_name).resolve()
+    try:
+        target.relative_to(extract_dir.resolve())
+    except ValueError:
+        return False
+    return True
+
+
 def extract_data(zip_path: Path):
     """Extract downloaded zip file to extract directory."""
     logger.info(f"Extracting {zip_path}")
     logger.info(f"Destination: {EXTRACT_DIR}")
-    
+
     try:
         with zipfile.ZipFile(zip_path) as zf:
-            # List contents
             file_list = zf.namelist()
             logger.info(f"Zip contains {len(file_list)} files/folders")
-            
-            # Extract all
+
+            # Zip-slip guard: validate every member before extraction.
+            unsafe = [n for n in file_list if not _is_safe_member(EXTRACT_DIR, n)]
+            if unsafe:
+                raise ValueError(
+                    f"Refusing to extract {len(unsafe)} member(s) with paths "
+                    f"that escape the extract directory (e.g. {unsafe[0]!r}). "
+                    "Possible zip-slip attack."
+                )
+
             zf.extractall(EXTRACT_DIR)
             
         logger.info("Extraction complete")

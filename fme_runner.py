@@ -176,12 +176,15 @@ def run_fme(workspace: Path = None, parameters: dict = None, test_mode: bool = F
         logger.info("Starting FME execution...")
         start_time = datetime.now()
         
+        # subprocess.run with a list argv handles Windows paths-with-spaces
+        # fine without invoking the shell — passing shell=True would mean a
+        # poisoned config value could inject shell metacharacters. Security
+        # audit H-4.
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=3600,  # 1 hour timeout
-            shell=True  # Important for Windows path handling
+            timeout=3600,  # 1 hour
         )
         
         end_time = datetime.now()

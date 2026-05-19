@@ -18,9 +18,16 @@ import requests
 # Load environment variables
 load_dotenv()
 
-# Import our AI validator components
+# Import our AI validator components.
+# Two paths get added so both the validator package and the top-level
+# utils/ package can be imported.
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_HERE = os.path.dirname(os.path.abspath(__file__))                # .../v2_m1_ai_validator/api
+_VALIDATOR_DIR = os.path.dirname(_HERE)                           # .../v2_m1_ai_validator
+_PROJECT_ROOT = os.path.dirname(_VALIDATOR_DIR)                   # .../vicmap-m1-ai-pipeline
+for _p in (_VALIDATOR_DIR, _PROJECT_ROOT):
+    if _p not in sys.path:
+        sys.path.append(_p)
 
 # Try to use database-enhanced validator, fallback to standard if database fails
 try:
@@ -34,7 +41,19 @@ except Exception as e:
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend integration
+
+# CORS: configured via the ALLOWED_ORIGINS env var (comma-separated). The
+# default empty list disables CORS entirely — set it to e.g.
+# `http://localhost:5000` to allow the bundled web UI to call this API.
+# Security audit H-1.
+_allowed = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _allowed:
+    CORS(app, origins=_allowed)
+
+# Bearer-token authentication. Set API_TOKEN in .env to enable.
+# Security audit C-1.
+from utils.auth import register_auth
+register_auth(app)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -4,18 +4,35 @@ Provides endpoints for data preview functionality
 """
 
 import os
+import sys
 import json
 import pandas as pd
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import logging
 
+# Make the project root importable so we can pull in the shared
+# `utils.auth` helper below.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.append(_PROJECT_ROOT)
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+
+# CORS: configured via the ALLOWED_ORIGINS env var (comma-separated).
+# Default empty list disables CORS entirely. Security audit H-1.
+_allowed = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _allowed:
+    CORS(app, origins=_allowed)
+
+# Bearer-token authentication. Set API_TOKEN in .env to enable.
+# Security audit C-1.
+from utils.auth import register_auth
+register_auth(app)
 
 # Global variables to store current data
 current_pozi_data = None

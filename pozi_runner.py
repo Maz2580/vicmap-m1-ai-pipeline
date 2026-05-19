@@ -90,8 +90,10 @@ def run_pozi_tasks(timeout: int = 3600) -> subprocess.CompletedProcess:
     # Create recipe file
     recipe_path = create_recipe_file()
     
-    # Build command for recipe mode
-    cmd_str = f'"{POZI_EXE}" --recipe="{recipe_path}"'
+    # Build command as a list (not a shell string) so we never invoke a
+    # shell parser — paths-with-spaces work fine, and config values can't
+    # inject shell metacharacters. Security audit H-4.
+    cmd = [str(POZI_EXE), f"--recipe={recipe_path}"]
     
     logger.info("="*70)
     logger.info("POZI CONNECT EXECUTION")
@@ -107,12 +109,11 @@ def run_pozi_tasks(timeout: int = 3600) -> subprocess.CompletedProcess:
         start_time = datetime.now()
         
         result = subprocess.run(
-            cmd_str,
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
-            shell=True,
-            cwd=str(POZI_EXE.parent)  # Run from Pozi Connect directory
+            cwd=str(POZI_EXE.parent),  # Run from Pozi Connect directory
         )
         
         end_time = datetime.now()

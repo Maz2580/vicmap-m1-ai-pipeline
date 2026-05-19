@@ -88,27 +88,59 @@ class SettingsManager:
             return False
 
     def test_fme_connection(self, fme_path=None):
-        """Test FME connection by checking if the executable exists and can be run"""
+        """Test the configured FME executable by running it with --version.
+
+        SECURITY (audit C-2): the path comes from server-side configuration
+        only — either the explicit `M1_FME_EXE` env var or the persisted
+        settings.json. Any caller-supplied `fme_path` argument is IGNORED
+        unless it matches one of those, because the previous behavior
+        (running an arbitrary path passed in via the HTTP API) was a
+        network-reachable arbitrary-code-execution primitive.
+        """
         try:
-            path_to_test = fme_path or self.settings['fme']['executable_path']
-            if not path_to_test:
-                return False, "FME path not configured"
+            configured_path = (
+                os.getenv("M1_FME_EXE", "").strip()
+                or self.settings.get("fme", {}).get("executable_path", "")
+            )
+            if not configured_path:
+                return False, "FME path not configured on the server (set M1_FME_EXE)."
 
-            if not os.path.exists(path_to_test):
-                return False, "FME executable not found at specified path"
+            # If a caller passed a path, only accept it if it matches the
+            # server's configured value. This blocks arbitrary-binary
+            # execution via the /api/settings/test endpoint.
+            if fme_path is not None and fme_path != configured_path:
+                return False, (
+                    "Refusing to test a caller-supplied FME path. Only the "
+                    "server-configured M1_FME_EXE may be tested."
+                )
 
-            # Try to run FME with --version flag
-            result = subprocess.run([path_to_test, '--version'], 
-                                 capture_output=True, 
-                                 text=True)
-            
+            if not os.path.exists(configured_path):
+                return False, "FME executable not found at the configured path."
+
+            # Sanity check: the configured path should look like an FME
+            # executable. Trivial guard but useful when M1_FME_EXE is mis-set.
+            basename = os.path.basename(configured_path).lower()
+            if not basename.startswith("fme"):
+                return False, (
+                    "Configured M1_FME_EXE does not look like an FME "
+                    "executable (basename must start with 'fme')."
+                )
+
+            result = subprocess.run(
+                [configured_path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+
             if result.returncode == 0:
-                return True, "FME connection successful"
-            else:
-                return False, f"Error running FME: {result.stderr}"
+                return True, "FME connection successful."
+            return False, f"Error running FME: {result.stderr.strip()}"
 
+        except subprocess.TimeoutExpired:
+            return False, "FME --version timed out."
         except Exception as e:
-            return False, f"Error testing FME connection: {str(e)}"
+            return False, f"Error testing FME connection: {e}"
 
     def test_email_connection(self, credentials=None):
         """Test email connection using provided or stored credentials"""

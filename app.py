@@ -20,11 +20,23 @@ from email_monitor import check_email_for_download_url
 from download_extract import download_data, extract_data, setup_directories, clean_existing_data
 from config import get_download_url, save_download_url, get_download_info, BASE_DIR
 from utils.settings_manager import SettingsManager
+from utils.auth import register_auth
 import fme_runner
 import pozi_runner
 
 app = Flask(__name__)
-CORS(app)
+
+# CORS: pass the allowed origins via the ALLOWED_ORIGINS env var (comma-
+# separated). Leave it unset on localhost-only deployments to disable CORS
+# entirely. Was previously wildcarded (security audit H-1).
+_allowed = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _allowed:
+    CORS(app, origins=_allowed)
+
+# Bearer-token authentication on /api/* routes. Set API_TOKEN in .env to
+# enable; leave empty to keep the legacy wide-open behavior (a warning is
+# logged at startup). Security audit C-1.
+register_auth(app)
 
 # Initialize settings manager
 settings_manager = SettingsManager()

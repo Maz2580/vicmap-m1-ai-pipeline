@@ -1,10 +1,28 @@
 # Security Audit — vicmap-m1-ai-pipeline
 
 **Audit date:** 2026-05-19
-**Audited commit:** `1ef2dab`
+**Audited commit:** `1ef2dab` (initial audit)
+**Update date:** 2026-05-20 — fixes for C-1, C-2, H-1, H-3, H-4 landed.
 **Scope:** Public repo only (`vicmap-m1-ai-pipeline`). Audit covers Flask
 routes, SQL handling, subprocess/shell usage, file path safety, LLM prompt
 construction, and log/error-path leakage.
+
+## Status (updated 2026-05-20)
+
+| Finding | Status | Where |
+|---|---|---|
+| C-1 No auth on Flask routes | ✅ **Fixed** | `utils/auth.py` (new) — Bearer-token middleware. `API_TOKEN` env var enables. |
+| C-2 `/api/settings/test` runs caller-supplied path | ✅ **Fixed** | `utils/settings_manager.py:test_fme_connection` — only the server-configured `M1_FME_EXE` is tested; caller-supplied paths are rejected. |
+| H-1 Wildcard CORS | ✅ **Fixed** | All 3 Flask apps now read `ALLOWED_ORIGINS` env var; CORS disabled if unset. |
+| H-2 No CSRF protection | ⚠️ Mitigated by C-1 fix | `API_TOKEN` Bearer header isn't reachable from cross-site form submission. Full `flask-wtf` integration still recommended for cookie-based deployments. |
+| H-3 Zip-slip in `download_extract.py` | ✅ **Fixed** | `_is_safe_member` validates every member resolves under `EXTRACT_DIR`. |
+| H-4 `shell=True` in fme/pozi runners | ✅ **Fixed** | Both removed; commands passed as lists. `cmd_str` in `pozi_runner.py` replaced with a `cmd` list. |
+| M-1 DB password in conn string | ⏳ Open | Still in `database_helper.py:48`. |
+| M-2 No LLM rate limit | ⏳ Open | No `flask-limiter` yet. |
+| L-1 Bind to 0.0.0.0 | ⏳ Open (documented) | Still the default. |
+| L-2 Dev server in prod | ⏳ Open (documented) | Still `app.run()`. |
+
+Adopter checklist below remains accurate for items still marked Open.
 
 > **Threat model assumption.** This codebase is intended for deployment **on
 > a council intranet behind a perimeter firewall**, not on the open internet.
