@@ -231,9 +231,12 @@ class EnhancedVicmapValidator:
         if cache_key in self.cache:
             return self.cache[cache_key]
 
-        # Format SPI for query (handle backslash escaping)
+        # Escape SQL single quotes by doubling them. Done in a temp variable
+        # so the f-string below stays valid on Python 3.10/3.11 (PEP 701
+        # allowing same-quote nesting inside f-strings is 3.12+ only).
+        escaped_spi = spi.replace("'", "''")
         where_clause = (f"parcel_lga_code='{self.LGA_CODE}' AND "
-                       f"parcel_spi='{spi.replace("'", "''")}'")
+                       f"parcel_spi='{escaped_spi}'")
         
         params = {
             'where': where_clause,
