@@ -1,0 +1,31 @@
+{
+    "fme": {
+        "executable_path": ""
+    },
+    "email": {
+        "username": "",
+        "password": "",
+        "server": "outlook.office365.com",
+        "port": 993
+    },
+    "paths": {
+        "log_directory": "logs",
+        "download_directory": "data/downloads",
+        "extract_directory": "data/extract"
+    },
+    "pozi_tasks": [
+        {
+            "name": "<YourLGA> M1 - 1 - Import Pathway",
+            "ini": "<YourLGA>/<YourLGA> M1 - 1 - Import Pathway.ini"
+        },
+        {
+            "name": "<YourLGA> M1 - 2 - Import Vicmap",
+            "ini": "<YourLGA>/<YourLGA> M1 - 2 - Import Vicmap.ini"
+        },
+        {
+            "name": "<YourLGA> M1 - 3 - Generate M1",
+            "ini": "<YourLGA>/<YourLGA> M1 - 3 - Generate M1.ini"
+        }
+    ],
+    "last_updated": null
+}

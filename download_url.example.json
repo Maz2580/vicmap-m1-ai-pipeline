@@ -1,0 +1,6 @@
+{
+  "url": "<paste-the-S3-pre-signed-url-from-the-VicMap-delivery-email>",
+  "order_number": "<your-order-reference>",
+  "last_updated": null,
+  "email_date": null
+}

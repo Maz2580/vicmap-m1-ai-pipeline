@@ -1,0 +1,121 @@
+# =============================================================================
+# vicmap-m1-ai-pipeline — .gitignore
+# =============================================================================
+# This file enforces the public-repo data policy. If you're adding a new file
+# pattern that could contain real council data, add it here BEFORE you stage.
+# =============================================================================
+
+# --- Secrets / environment ---------------------------------------------------
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# --- IDE / editor ------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# --- OS ----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*
+
+# --- Logs / debug ------------------------------------------------------------
+*.log
+logs/
+debug_output.txt
+
+# =============================================================================
+# Data exclusions — DO NOT COMMIT REAL COUNCIL DATA
+# =============================================================================
+
+# --- Pipeline I/O ------------------------------------------------------------
+data/incoming/
+data/incoming/*.zip
+data/processed/
+data/extracts/
+
+# Spatial data — adopters supply their own LGA extract from data.vic.gov.au
+data/**/*.shp
+data/**/*.shx
+data/**/*.dbf
+data/**/*.prj
+data/**/*.cpg
+data/**/*.geojson
+data/**/*.gpkg
+data/**/*.kml
+data/**/*.kmz
+
+# --- Generated pipeline outputs ----------------------------------------------
+# Keep template m1_tasks.example.txt only.
+recipes/m1_tasks.txt
+recipes/m1_tasks_*.txt
+
+# --- Validation reports / results (always real data) ------------------------
+validation_results/
+*_validation_report.json
+*_validation_results.csv
+ai_pozi_analysis_report.json
+ai_intelligent_validation_report.json
+ai_intelligent_validation_results.csv
+openai_validation_report.json
+openai_validation_results.csv
+pozi_validation_results.csv
+smart_openai_validation_report.json
+smart_openai_validation_results.csv
+enhanced_validation_report.txt
+
+# --- Training / sample data (must use synthetic fixtures only) --------------
+# CSVs are excluded by default; allow the synthetic test fixture explicitly.
+*.csv
+!tests/fixtures/sample_m1.csv
+!tests/fixtures/*.example.csv
+
+# Excel training data — never commit
+*.xlsx
+*.xls
+*.xlsm
+
+# Internal Word docs
+*.docx
+*.doc
+
+# --- Pozi / FME run artefacts ------------------------------------------------
+*.gdb/
+*.fgdb/
+*.lyrx
+*.fmwt
+*.fmw.bak
+
+# --- Misc local-only ---------------------------------------------------------
+_COPY_MANIFEST.md
+TODO.local.md
+*.local.md

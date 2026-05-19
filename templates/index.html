@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>M1 Automation System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Left Panel: Main Interface -->
+        <div class="main-panel">
+            <div class="header">
+                <div class="logo-container">
+                    <span class="logo-placeholder">🚀</span>
+                </div>
+                <div class="header-text">
+                    <h1>M1 Automation System</h1>
+                    <p>Automated Vicmap Data Processing and M1 Generation</p>
+                </div>
+                <div class="header-actions">
+                    <div class="system-status">
+                        <i class="fas fa-check-circle"></i>
+                        System Ready
+                    </div>
+                    <button class="settings-btn" onclick="openSettings()">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </button>
+                </div>
+            </div>
+
+            <div class="progress-container">
+                <h3>⚡ Overall Progress</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%">0%</div>
+                </div>
+                <div class="current-step" id="currentStep">Ready to start</div>
+            </div>
+
+            <div class="quick-actions">
+                <h3>⚡ Quick Actions</h3>
+                <div class="action-buttons">
+                    <button class="button" onclick="runCompleteWorkflow()">▶️ Run Complete Workflow</button>
+                    <button class="button secondary" onclick="checkEmail()">📧 Check for New Data</button>
+                    <button class="button" onclick="downloadData()" id="downloadBtn" disabled>⬇️ Download & Extract</button>
+                    <button class="button" onclick="runFME()" id="fmeBtn" disabled>⚙️ Run FME Processing</button>
+                    <button class="button" onclick="runPozi()" id="poziBtn" disabled>📊 Run Pozi Tasks</button>
+                    <button class="button" onclick="runAIValidation()" id="aiValidateBtn" disabled>🤖 AI Validate M1</button>
+                    <button class="button secondary" onclick="viewAIReport()" id="aiReportBtn" disabled>📊 View AI Report</button>
+                </div>
+            </div>
+
+            <div class="workflow-section">
+                <h3>🔄 Workflow Steps</h3>
+                <div class="workflow-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="step-number">1</div>
+                            <h3>Email Monitoring</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>Monitors email inbox for new Vicmap data notifications and extracts download URLs from the most recent email.</p>
+                            <div id="emailStatus"></div>
+                            <button class="button secondary" onclick="checkEmail()">Check Now</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="step-number">2</div>
+                            <h3>Download & Extract</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>Downloads the latest Vicmap data and extracts it to the processing directory with progress tracking.</p>
+                            <div id="downloadStatus"></div>
+                            <button class="button" onclick="downloadData()" id="downloadBtn2" disabled>Download</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="step-number">3</div>
+                            <h3>FME Processing</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>Runs FME workspaces to process and transform the Vicmap data for M1 generation.</p>
+                            <div id="fmeStatus"></div>
+                            <button class="button" onclick="runFME()" id="fmeBtn2" disabled>Run FME</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="step-number">4</div>
+                            <h3>Pozi Connect</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>Executes Pozi Connect tasks to generate the final M1 report with all property data.</p>
+                            <div id="poziStatus"></div>
+                            <button class="button" onclick="runPozi()" id="poziBtn2" disabled>Run Pozi</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="step-number">5</div>
+                            <h3>AI Validation</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>Validates M1 data using AI-powered field mapping, error recovery, and comment enhancement.</p>
+                            <div id="aiValidationStatus"></div>
+                            <button class="button" onclick="runAIValidation()" id="aiValidationBtn" disabled>🤖 AI Validate</button>
+                            <button class="button secondary" onclick="viewAIReport()" id="viewReportBtn" disabled>📊 View Report</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Insights Dashboard -->
+            <div class="workflow-section" id="aiInsightsSection" style="display: none;">
+                <h3>🤖 AI Insights Dashboard</h3>
+                <div class="ai-dashboard">
+                    <div class="ai-metrics">
+                        <div class="metric-card">
+                            <div class="metric-value" id="validationRate">--</div>
+                            <div class="metric-label">Validation Rate</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="fieldMappingRate">--</div>
+                            <div class="metric-label">Field Mapping</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="autoFixesApplied">--</div>
+                            <div class="metric-label">Auto-fixes Applied</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="commonErrors">--</div>
+                            <div class="metric-label">Common Errors</div>
+                        </div>
+                    </div>
+                    <div class="ai-actions">
+                        <button class="button" onclick="viewDetailedReport()">📋 View Detailed Report</button>
+                        <button class="button secondary" onclick="exportAIReport()">📤 Export Report</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Validation Feed -->
+            <div class="workflow-section" id="liveValidationSection" style="display: none;">
+                <h3>📋 Live Validation Feed</h3>
+                <div class="validation-controls">
+                    <button class="button secondary" onclick="pauseValidation()" id="pauseBtn">⏸️ Pause</button>
+                    <button class="button secondary" onclick="resumeValidation()" id="resumeBtn" disabled>▶️ Resume</button>
+                    <button class="button secondary" onclick="clearValidationFeed()">🗑️ Clear</button>
+                </div>
+                <div class="validation-feed" id="validationFeed">
+                    <div class="feed-entry">
+                        <span class="feed-timestamp">[System]</span>
+                        <span>AI Validation ready - waiting for M1 file...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="log-container">
+                <h3>📋 System Log</h3>
+                <div class="log-box" id="logBox">
+                    <div class="log-entry INFO">
+                        <span class="log-timestamp">[System]</span>
+                        <span>M1 Automation System initialized and ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settingsOverlay">
+            <div class="settings-modal" id="settingsModal">
+                <h2>
+                    <span><i class="fas fa-cog"></i> Settings</span>
+                    <button class="close-modal" onclick="closeSettings()">×</button>
+                </h2>
+                
+                <div class="settings-section">
+                    <h3><i class="fas fa-tools"></i> FME Configuration</h3>
+                    <div class="form-group">
+                        <label for="fmePath">FME Installation Path</label>
+                        <input type="text" id="fmePath" placeholder="C:\Program Files\FME\fme.exe">
+                        <button class="test-button" onclick="testFMEConnection()">
+                            <i class="fas fa-vial"></i> Test Connection
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3><i class="fas fa-envelope"></i> Email Configuration</h3>
+                    <div class="form-group">
+                        <label for="emailUsername">Email Username</label>
+                        <input type="email" id="emailUsername" placeholder="your.email@domain.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="emailPassword">Email Password</label>
+                        <input type="password" id="emailPassword">
+                    </div>
+                    <button class="test-button" onclick="testEmailConnection()">
+                        <i class="fas fa-paper-plane"></i> Test Email Connection
+                    </button>
+                </div>
+
+                <div class="settings-section">
+                    <h3><i class="fas fa-folder"></i> Directory Paths</h3>
+                    <div class="form-group">
+                        <label for="logDir">Log Directory</label>
+                        <input type="text" id="logDir" placeholder="Current: logs/">
+                    </div>
+                    <div class="form-group">
+                        <label for="downloadDir">Download Directory</label>
+                        <input type="text" id="downloadDir" placeholder="Current: data/downloads/">
+                    </div>
+                    <div class="form-group">
+                        <label for="extractDir">Extract Directory</label>
+                        <input type="text" id="extractDir" placeholder="Current: data/extract/">
+                    </div>
+                    <button class="reset-button" onclick="resetPaths()">
+                        <i class="fas fa-undo"></i> Reset to Defaults
+                    </button>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="button secondary" onclick="closeSettings()">Cancel</button>
+                    <button class="button" onclick="saveSettings()">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Data Preview -->
+        <div class="preview-panel">
+            <div class="preview-container">
+                <div class="preview-header">
+                    <h3>
+                        <i class="fas fa-table"></i>
+                        Data Preview
+                    </h3>
+                    <div class="preview-controls">
+                        <button class="preview-btn" onclick="loadDemoData()" title="Load Demo Data">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="preview-btn" onclick="showReportsModal()" title="Historical Reports">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="preview-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button class="preview-btn" onclick="toggleSideBySide()" title="Side-by-Side Comparison">
+                            <i class="fas fa-columns"></i>
+                        </button>
+                        <button class="preview-btn" onclick="refreshPreview()" title="Refresh Preview">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="preview-tabs">
+                    <button class="tab-btn active" onclick="switchTab('pozi')" id="poziTab">
+                        <i class="fas fa-file-csv"></i>
+                        POZI CSV
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('validation')" id="validationTab">
+                        <i class="fas fa-check-circle"></i>
+                        AI Validation
+                    </button>
+                </div>
+                
+                <div class="preview-content">
+                    <!-- POZI CSV Preview -->
+                    <div class="preview-section active" id="poziPreview">
+                        <div class="preview-info">
+                            <div class="info-item">
+                                <span class="info-label">File:</span>
+                                <span class="info-value" id="poziFileName">No file loaded</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Rows:</span>
+                                <span class="info-value" id="poziRowCount">0</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Columns:</span>
+                                <span class="info-value" id="poziColumnCount">0</span>
+                            </div>
+                        </div>
+                        <div class="data-table-container">
+                            <table class="data-table" id="poziTable">
+                                <thead id="poziTableHead">
+                                    <tr>
+                                        <th>Loading...</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="poziTableBody">
+                                    <tr>
+                                        <td colspan="100%" class="no-data">No data available</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Validation Preview -->
+                    <div class="preview-section" id="validationPreview">
+                        <div class="preview-info">
+                            <div class="info-item">
+                                <span class="info-label">Status:</span>
+                                <span class="info-value" id="validationStatus">Not validated</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Kept:</span>
+                                <span class="info-value" id="validationKept">0</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Rejected:</span>
+                                <span class="info-value" id="validationRejected">0</span>
+                            </div>
+                        </div>
+                        <div class="data-table-container">
+                            <table class="data-table" id="validationTable">
+                                <thead id="validationTableHead">
+                                    <tr>
+                                        <th>Row</th>
+                                        <th>Decision</th>
+                                        <th>Confidence</th>
+                                        <th>Reasons</th>
+                                        <th>Propnum</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="validationTableBody">
+                                    <tr>
+                                        <td colspan="100%" class="no-data">No validation results available</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Modal -->
+    <div class="fullscreen-modal" id="fullscreenModal">
+        <div class="fullscreen-content">
+            <div class="fullscreen-header">
+                <h3 id="fullscreenTitle">Data Preview</h3>
+                <button class="close-btn" onclick="closeFullscreen()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="fullscreen-body" id="fullscreenBody">
+                <!-- Content will be populated here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Side-by-side Modal -->
+    <div class="sidebyside-modal" id="sidebysideModal">
+        <div class="sidebyside-content">
+            <div class="sidebyside-header">
+                <h3>Data Comparison</h3>
+                <button class="close-btn" onclick="closeSidebyside()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="sidebyside-body">
+                <div class="comparison-panel">
+                    <h4>Original POZI Data</h4>
+                    <div class="comparison-content" id="originalData">
+                        <!-- Original data will be populated here -->
+                    </div>
+                </div>
+                <div class="comparison-panel">
+                    <h4>AI Validation Results</h4>
+                    <div class="comparison-content" id="validationData">
+                        <!-- Validation data will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Modal -->
+    <div class="reports-modal" id="reportsModal">
+        <div class="reports-content">
+            <div class="reports-header">
+                <h3>Historical Reports</h3>
+                <button class="close-btn" onclick="closeReportsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="reports-body">
+                <div class="reports-section">
+                    <h4>POZI Reports</h4>
+                    <div class="reports-list" id="poziReportsList">
+                        <div class="loading">Loading POZI reports...</div>
+                    </div>
+                </div>
+                <div class="reports-section">
+                    <h4>AI Validation Reports</h4>
+                    <div class="reports-list" id="validationReportsList">
+                        <div class="loading">Loading validation reports...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
