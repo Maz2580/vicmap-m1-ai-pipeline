@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security disclosure
+    url: https://github.com/Maz2580/vicmap-m1-ai-pipeline/security/advisories/new
+    about: |
+      Report security vulnerabilities privately via GitHub Security
+      Advisories. Do NOT open a public issue for security findings —
+      see SECURITY_AUDIT.md for the threat model.
+  - name: Vicmap M1 process questions
+    url: mailto:vicmap.help@transport.vic.gov.au
+    about: |
+      For questions about the M1 form itself (not this code),
+      contact the Vicmap helpdesk at the State of Victoria.
