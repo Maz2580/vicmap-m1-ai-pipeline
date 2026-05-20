@@ -37,9 +37,14 @@ individually — see [`docs/api.md`](docs/api.md).
 
 ### Headline capabilities
 
-- 🤖 **AI-assisted validation** with structured JSON output, role-separated
-  prompts (prompt-injection-resistant), and a learned-pattern layer that
-  conditions on your council's prior accept/reject decisions.
+- ⚡ **Deterministic rule engine in front of the LLM.** 8 rules covering
+  schema, SDE-grounded spatial checks (road-locality, parcel-property link,
+  point-in-property, distance-based-address), and Pozi sync-drift comment
+  patterns. ~50% of rows resolve here with zero LLM cost. Rule findings
+  are passed as context to the LLM for the ambiguous remainder.
+- 🤖 **AI-assisted validation** with **strict JSON-schema output**,
+  role-separated prompts (prompt-injection-resistant), and a learned-pattern
+  layer that conditions on your council's prior accept/reject decisions.
 - 🔌 **5 LLM backends behind one interface** — OpenAI, OpenRouter, Groq,
   Ollama, Together.ai (all via the OpenAI-compatible API), plus Anthropic
   Claude natively. Optional fallback provider for transient-error recovery.

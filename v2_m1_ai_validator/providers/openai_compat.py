@@ -14,11 +14,11 @@ from .base import LLMProvider, ChatResponse
 # None for default_base_url means "use the openai SDK's built-in default".
 # None for env_var means the provider doesn't need a real key (Ollama).
 PRESETS: dict[str, tuple[str | None, str, str | None]] = {
-    "openai":     (None,                                "gpt-4o-mini",                          "OPENAI_API_KEY"),
-    "openrouter": ("https://openrouter.ai/api/v1",      "openai/gpt-4o-mini",                   "OPENROUTER_API_KEY"),
-    "groq":       ("https://api.groq.com/openai/v1",    "llama-3.1-70b-versatile",              "GROQ_API_KEY"),
+    "openai":     (None,                                "gpt-5.4",                              "OPENAI_API_KEY"),
+    "openrouter": ("https://openrouter.ai/api/v1",      "openai/gpt-5.4",                       "OPENROUTER_API_KEY"),
+    "groq":       ("https://api.groq.com/openai/v1",    "llama-3.3-70b-versatile",              "GROQ_API_KEY"),
     "ollama":     ("http://localhost:11434/v1",         "llama3.1",                             None),
-    "together":   ("https://api.together.xyz/v1",       "meta-llama/Llama-3.1-70B-Instruct-Turbo", "TOGETHER_API_KEY"),
+    "together":   ("https://api.together.xyz/v1",       "meta-llama/Llama-3.3-70B-Instruct-Turbo", "TOGETHER_API_KEY"),
 }
 
 
