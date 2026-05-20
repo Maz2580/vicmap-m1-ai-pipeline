@@ -117,11 +117,11 @@ auto-failover (e.g. paid OpenAI as primary, free Groq as fallback).
 
 | `LLM_PROVIDER` | API key env var | Default model | Notes |
 |---|---|---|---|
-| `openai` | `OPENAI_API_KEY` | `gpt-4o-mini` | Default. Paid. |
-| `openrouter` | `OPENROUTER_API_KEY` | `openai/gpt-4o-mini` | Routes to many models incl. free tiers. |
-| `groq` | `GROQ_API_KEY` | `llama-3.1-70b-versatile` | Free tier available, very fast. |
+| `openai` | `OPENAI_API_KEY` | `gpt-5.4` | Default. Paid. OpenAI's affordable workhorse for structured-output tasks. |
+| `openrouter` | `OPENROUTER_API_KEY` | `openai/gpt-5.4` | Routes to many models incl. free tiers. |
+| `groq` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Free tier available, very fast. |
 | `ollama` | none | `llama3.1` | Local-only. Set `OLLAMA_BASE_URL` if not on `localhost:11434`. |
-| `together` | `TOGETHER_API_KEY` | `meta-llama/Llama-3.1-70B-Instruct-Turbo` | Paid. |
+| `together` | `TOGETHER_API_KEY` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | Paid. |
 | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | Requires `pip install anthropic` (commented in `requirements.txt`). |
 
 Override the model per-provider with `LLM_MODEL=<model-id>`.
@@ -167,7 +167,12 @@ cp download_url.example.json download_url.json
 At minimum, set in `.env`:
 
 ```dotenv
-LGA_CODE=346                      # Your Victorian LGA code
+# ⚠️ CRITICAL: Set this to YOUR council's 3-digit Victorian LGA code.
+# This is NOT optional — every SDE query and VicMap REST query filters by it.
+# Examples: 300=Alpine, 328=Greater Shepparton, 363=Mildura.
+# Full list: https://www.land.vic.gov.au/maps-and-spatial/
+LGA_CODE=
+
 LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 
@@ -175,6 +180,17 @@ OPENAI_API_KEY=sk-...
 API_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
 ALLOWED_ORIGINS=http://localhost:5000
 ```
+
+> ### ⚠️ Setting LGA_CODE wrong means silent zero results
+>
+> Every spatial/property query in the validator filters by your LGA code.
+> If you set the wrong code (or leave it blank), the rule engine will
+> query the database, get back zero matching rows, and conclude *"nothing
+> wrong, KEEP the row"* — even when there genuinely is an issue. The
+> Greater Shepparton instance ran for months with `LGA_CODE=346`
+> (Strathbogie's code) before we noticed every VicMap query was
+> returning empty. **Always verify your LGA code against the official
+> Victorian list before deploying.**
 
 ### Run
 
@@ -273,12 +289,24 @@ The validator does **three layers of checks** for each M1 row:
    learned from labelled training data, decides KEEP / REJECT, and
    produces a confidence + reason.
 
-The AI output is **structured JSON** (`response_format={"type":"json_object"}`)
-with role-separated prompts. The system message holds the rules and JSON
-schema; the user message holds **only the row data**. That means a
-malicious "comments" field can't impersonate the rule-giver — the system
-prompt explicitly tells the model to treat user content as data, never as
-instructions.
+The AI output is **structured JSON** via OpenAI's strict json_schema mode
+(`response_format={"type":"json_schema","strict":true,...}`), which
+guarantees the model returns a parseable object matching the validator's
+expected shape — no malformed JSON, no missing fields. Role-separated
+prompts mean the system message holds the rules and schema while the user
+message holds **only the row data**. A malicious `comments` field can't
+impersonate the rule-giver — the system prompt explicitly tells the model
+to treat user content as data, never as instructions.
+
+There's a deterministic **rule engine** in front of the LLM (see
+`v2_m1_ai_validator/data_processing/rule_engine.py`). For each M1 row it
+runs cheap schema checks first, then SDE-grounded spatial checks
+(road-locality lookup, parcel-property link, point-in-property,
+distance-based-address detection), then comment-pattern checks (the Pozi
+sync-drift signature). Only rows that the rule engine cannot classify go
+to the LLM — which means ~50% of rows in production training data
+resolve at zero LLM cost. Adding a new rule is ~30 lines; see the rules
+already in the file as templates.
 
 ### Pluggable LLM providers
 
@@ -319,20 +347,64 @@ template.
 
 ## Adapting this for your LGA
 
-Most adopters need to change exactly three things:
+### Mandatory changes
 
-1. **Set `LGA_CODE`** to your Victorian LGA code.
+1. **Set `LGA_CODE` in `.env` to your Victorian LGA code.** Three-digit
+   string. Find your code on the Victorian Department's
+   [LGA list](https://www.land.vic.gov.au/maps-and-spatial/). A few
+   examples:
+
+   | LGA | Code | LGA | Code |
+   |---|---|---|---|
+   | Alpine Shire | 300 | Greater Shepparton City | 328 |
+   | Greater Geelong City | 322 | Mildura Rural City | 363 |
+   | Greater Bendigo City | 320 | Whittlesea City | 379 |
+   | Greater Dandenong City | 321 | Yarra City | 384 |
+
+   **If you set this wrong, every SDE/VicMap query returns zero rows
+   silently — and the rule engine concludes "no issues" for rows that
+   genuinely have problems.** This is the single most common
+   misconfiguration; verify before deploying.
+
 2. **Populate `config/settings.json` `pozi_tasks`** with your council's
    3 `.ini` files (replace the `<YourLGA>` placeholders).
-3. **Optionally** override docstrings / error messages that still reference
-   Greater Shepparton:
-   ```bash
-   grep -rni "shepparton" --include="*.py"
-   ```
 
-If you use a different ERP than TechOne InfoProd, replace
-`v2_m1_ai_validator/data_processing/database_helper.py` with one targeted
-at your schema. Everything else above the DB layer is vendor-agnostic.
+3. **Set `DB_SERVER`/`DB_USERNAME`/`DB_PASSWORD`** in `.env` to your
+   council's SQL Server. If you have ArcSDE on the same server, also
+   set `SDE_DATABASE` — the rule engine will use it.
+
+### Optional cleanup
+
+Override docstrings / error messages that still reference Greater
+Shepparton (informational only, doesn't affect behaviour):
+
+```bash
+grep -rni "shepparton" --include="*.py"
+```
+
+### If your council uses a different ERP
+
+If you use Civica Pathway, Civica Authority, MagiQ, etc. instead of
+TechnologyOne InfoProd, replace
+`v2_m1_ai_validator/data_processing/database_helper.py` with one
+targeted at your schema. Everything else above the DB layer is
+vendor-agnostic.
+
+If your ArcSDE Vicmap layers use different column names than the
+defaults baked into `sde_validator.py` (we discovered Greater
+Shepparton's schema via `INFORMATION_SCHEMA.COLUMNS` — yours may
+differ), pass override dicts via the `ReadOnlySDEHelper` constructor:
+
+```python
+sde = ReadOnlySDEHelper(
+    col_address={"table": "[SDE].[SDEADMIN].[ADDRESS]",
+                 "road_name": "ROADNAME", ...},
+    col_property={...},
+    col_parcel={...},
+)
+```
+
+Or subclass it.
 
 ---
 
