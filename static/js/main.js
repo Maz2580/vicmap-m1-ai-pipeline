@@ -509,6 +509,14 @@ window.showM1FileSelectionModal = async function () {
                     <button class="close-modal" onclick="closeM1FileSelectionModal()">&times;</button>
                 </h2>
                 <div style="padding: 20px;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">📂 List M1 files from a folder (e.g. a previous run):</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="m1DirectoryPath" placeholder="Paste a folder path containing M1 CSV files"
+                                   style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                            <button class="button" onclick="listM1FilesFromDirectory()">List</button>
+                        </div>
+                    </div>
                     <div id="m1FilesList" style="max-height: 400px; overflow-y: auto;">
                         <div class="loading">Loading available M1 files...</div>
                     </div>
@@ -532,21 +540,47 @@ window.showM1FileSelectionModal = async function () {
     }
 
     modal.style.display = 'flex';
-    setTimeout(() => modal.classList.add('active'), 10);
+    // Activate BOTH the overlay and the inner box. The .settings-modal box
+    // starts at opacity:0 and only becomes visible with its own .active class
+    // — without this the page just dims with an invisible modal.
+    setTimeout(() => {
+        modal.classList.add('active');
+        const box = modal.querySelector('.settings-modal');
+        if (box) box.classList.add('active');
+    }, 10);
     App.state.selectedM1File = null;
+    const dirInput = document.getElementById('m1DirectoryPath');
+    if (dirInput) dirInput.value = '';
+    await loadM1FilesList();
+};
 
+// Fetch + render the M1 file list. With no `directory`, lists the default
+// discovery locations (POZI output etc.) and auto-selects the latest. With a
+// `directory`, lists M1 CSVs found under that folder (a previous run) and
+// makes no auto-selection.
+window.loadM1FilesList = async function (directory) {
+    const filesList = document.getElementById('m1FilesList');
+    if (filesList) filesList.innerHTML = '<div class="loading">Loading available M1 files...</div>';
     try {
-        const response = await fetch('/api/m1-files/list');
+        const url = directory
+            ? `/api/m1-files/list?directory=${encodeURIComponent(directory)}`
+            : '/api/m1-files/list';
+        const response = await fetch(url);
         const data = await response.json();
 
-        const filesList = document.getElementById('m1FilesList');
-        if (data.files && data.files.length > 0) {
-            if (data.latest_file) {
-                App.state.selectedM1File = data.latest_file;
-                const manualInput = document.getElementById('manualFilePath');
-                if (manualInput) manualInput.value = data.latest_file;
-            }
+        if (data.error) {
+            filesList.innerHTML = `<div style="padding: 20px; text-align: center; color: #dc3545;">${data.error}</div>`;
+            return;
+        }
 
+        // Only auto-select the latest on the default (non-directory) listing.
+        if (!directory && data.latest_file) {
+            App.state.selectedM1File = data.latest_file;
+            const manualInput = document.getElementById('manualFilePath');
+            if (manualInput) manualInput.value = data.latest_file;
+        }
+
+        if (data.files && data.files.length > 0) {
             filesList.innerHTML = data.files.map((file, index) => {
                 const modifiedDate = new Date(file.modified * 1000).toLocaleString();
                 const isLatest = file.is_latest || (index === 0 && data.latest_file === file.path);
@@ -554,7 +588,7 @@ window.showM1FileSelectionModal = async function () {
                 const itemStyle = isLatest ? 'padding: 10px; border: 2px solid #10b981; margin-bottom: 8px; cursor: pointer; border-radius: 4px; background: #f0fdf4;' : 'padding: 10px; border: 1px solid #ddd; margin-bottom: 8px; cursor: pointer; border-radius: 4px;';
 
                 return `
-                    <div class="file-item ${isLatest ? 'latest-file' : ''}" onclick="selectM1File('${file.path.replace(/'/g, "\\'")}', this)" 
+                    <div class="file-item ${isLatest ? 'latest-file' : ''}" onclick="selectM1File('${file.path.replace(/'/g, "\\'")}', this)"
                          style="${itemStyle}">
                         <div style="font-weight: bold; display: flex; align-items: center;">
                             ${file.filename}${latestBadge}
@@ -569,12 +603,32 @@ window.showM1FileSelectionModal = async function () {
                 `;
             }).join('');
         } else {
-            filesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No M1 files found. Enter a file path manually.</div>';
+            filesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No M1 files found here. Enter a file path manually.</div>';
         }
     } catch (error) {
-        document.getElementById('m1FilesList').innerHTML =
+        filesList.innerHTML =
             `<div style="padding: 20px; text-align: center; color: #dc3545;">Error loading files: ${error.message}</div>`;
     }
+};
+
+// Re-list using the folder path the user typed (previous-run directory).
+window.listM1FilesFromDirectory = async function () {
+    const dirInput = document.getElementById('m1DirectoryPath');
+    const dir = dirInput ? dirInput.value.trim() : '';
+    if (!dir) { App.ui.showToast('Enter a folder path first', 'warning'); return; }
+    App.state.selectedM1File = null;
+    await loadM1FilesList(dir);
+};
+
+// Standalone entry point: validate an existing/previous M1 file WITHOUT
+// running the full Email->Download->FME->Pozi workflow. Opens the same
+// selection modal directly (the workflow-gated button stays as-is).
+window.validateExistingM1 = function () {
+    if (App.state.aiValidationStatus && App.state.aiValidationStatus.isRunning) {
+        App.ui.showToast('AI validation is already running!', 'warning');
+        return;
+    }
+    showM1FileSelectionModal();
 };
 
 window.selectM1File = function (filePath, element) {
@@ -592,6 +646,8 @@ window.selectM1File = function (filePath, element) {
 window.closeM1FileSelectionModal = function () {
     const modal = document.getElementById('m1FileSelectionModal');
     if (modal) {
+        const box = modal.querySelector('.settings-modal');
+        if (box) box.classList.remove('active');
         modal.classList.remove('active');
         setTimeout(() => modal.style.display = 'none', 300);
     }

@@ -931,7 +931,22 @@ def list_m1_files():
                     
         finally:
             os.chdir(original_cwd)
-        
+
+        # If the caller asked for a specific directory (e.g. a previous run's
+        # output folder), validate from there: override discovery with the M1
+        # CSVs found under that directory. Lets users validate prior runs
+        # without re-running the full Email->Download->FME->Pozi workflow.
+        requested_dir = (request.args.get('directory') or '').strip()
+        if requested_dir:
+            if not os.path.isdir(requested_dir):
+                return jsonify({
+                    'error': f'Directory not found: {requested_dir}',
+                    'files': [], 'count': 0, 'latest_file': None,
+                }), 400
+            m1_files = []
+            for patt in ('*M1*.csv', '*POZI*.csv', '*pozi*.csv'):
+                m1_files.extend(glob.glob(os.path.join(requested_dir, '**', patt), recursive=True))
+
         files_list = []
         seen_paths = set()
         
