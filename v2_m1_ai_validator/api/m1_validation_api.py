@@ -1386,9 +1386,24 @@ def run_openai_validation(file_path: str):
         validation_status['current_operation'] = 'File loaded, analyzing structure...'
         
         m1_logger.step_progress(f"Loaded {len(df)} rows with {len(df.columns)} columns")
-        m1_logger.step_completed("File Analysis", time.time() - step_start, 
+        m1_logger.step_completed("File Analysis", time.time() - step_start,
                                 f"{len(df)} rows ready for validation")
-        
+
+        # File-level pre-pass: build the multi-assessment fan-out map ONCE so
+        # the cross-row parent-re-add rule can fire. This per-row loop (below)
+        # calls validate_single_row_with_openai directly, so we must pass the
+        # batch context in ourselves — without it that rule stays dormant.
+        from data_processing.rule_engine import analyze_batch
+        batch_context = analyze_batch([r.to_dict() for _, r in df.iterrows()])
+        fanout_flagged = sum(
+            1 for v in batch_context.get("fanout", {}).values()
+            if v.get("count", 0) >= 3
+        )
+        m1_logger.step_progress(
+            f"Fan-out pre-pass: {fanout_flagged} propnum group(s) flagged as "
+            f"possible parent-re-add"
+        )
+
         # Step 2: Training Data Analysis
         step_start = time.time()
         m1_logger.step_started("AI Training Analysis", "OpenAI analyzing data patterns")
@@ -1432,7 +1447,7 @@ def run_openai_validation(file_path: str):
             batch_df = df.iloc[start_idx:end_idx]
             for idx, row in batch_df.iterrows():
                 try:
-                    result = openai_validator.validate_single_row_with_openai(row, idx)
+                    result = openai_validator.validate_single_row_with_openai(row, idx, batch_context=batch_context)
                     validation_results.append(result)
                     
                     # Log rejections
