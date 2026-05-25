@@ -169,8 +169,8 @@ At minimum, set in `.env`:
 ```dotenv
 # ⚠️ CRITICAL: Set this to YOUR council's 3-digit Victorian LGA code.
 # This is NOT optional — every SDE query and VicMap REST query filters by it.
-# Examples: 300=Alpine, 328=Greater Shepparton, 363=Mildura.
-# Full list: https://www.land.vic.gov.au/maps-and-spatial/
+# Look up your code in the Vicmap data or at:
+# https://www.land.vic.gov.au/maps-and-spatial/
 LGA_CODE=
 
 LLM_PROVIDER=openai
@@ -186,11 +186,11 @@ ALLOWED_ORIGINS=http://localhost:5000
 > Every spatial/property query in the validator filters by your LGA code.
 > If you set the wrong code (or leave it blank), the rule engine will
 > query the database, get back zero matching rows, and conclude *"nothing
-> wrong, KEEP the row"* — even when there genuinely is an issue. The
-> Greater Shepparton instance ran for months with `LGA_CODE=346`
-> (Strathbogie's code) before we noticed every VicMap query was
-> returning empty. **Always verify your LGA code against the official
-> Victorian list before deploying.**
+> wrong, KEEP the row"* — even when there genuinely is an issue. We learned
+> this the hard way: an instance ran for months with a neighbouring shire's
+> code before anyone noticed every VicMap query was returning empty.
+> **Always verify your LGA code against the official Victorian list before
+> deploying.**
 
 ### Run
 
@@ -350,16 +350,10 @@ template.
 ### Mandatory changes
 
 1. **Set `LGA_CODE` in `.env` to your Victorian LGA code.** Three-digit
-   string. Find your code on the Victorian Department's
-   [LGA list](https://www.land.vic.gov.au/maps-and-spatial/). A few
-   examples:
-
-   | LGA | Code | LGA | Code |
-   |---|---|---|---|
-   | Alpine Shire | 300 | Greater Shepparton City | 328 |
-   | Greater Geelong City | 322 | Mildura Rural City | 363 |
-   | Greater Bendigo City | 320 | Whittlesea City | 379 |
-   | Greater Dandenong City | 321 | Yarra City | 384 |
+   string. Look up your council's code in the Vicmap data itself, or on the
+   Victorian Department's
+   [LGA list](https://www.land.vic.gov.au/maps-and-spatial/). The tool
+   ships with no default — you must supply your own.
 
    **If you set this wrong, every SDE/VicMap query returns zero rows
    silently — and the rule engine concludes "no issues" for rows that

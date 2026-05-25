@@ -2,6 +2,7 @@
 AI-Powered Field Mapper for M1 Validation
 Automatically detects and suggests correct field mappings
 """
+import os
 import re
 import logging
 from typing import Dict, List, Tuple, Optional
@@ -211,11 +212,15 @@ class AIFieldMapper:
             analysis['field_usage'][field] = usage_count
         
         # Check for common issues
+        expected_lga = os.getenv("LGA_CODE", "")
         for record in m1_data:
-            # Check for LGA code consistency
+            # Flag records whose lga_code doesn't match the configured LGA_CODE
+            # (only when LGA_CODE is set — a generic tool hardcodes no code).
             lga_code = record.get('lga_code')
-            if lga_code and lga_code != '346':
-                analysis['potential_issues'].append(f"LGA code {lga_code} - should be 346 for Greater Shepparton")
+            if expected_lga and lga_code and lga_code != expected_lga:
+                analysis['potential_issues'].append(
+                    f"LGA code {lga_code} does not match configured LGA_CODE {expected_lga}"
+                )
             
             # Check for missing new_road flag
             if record.get('edit_code') == 'S' and not record.get('new_road'):

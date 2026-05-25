@@ -8,8 +8,9 @@ import json
 import logging
 from urllib.parse import urlencode
 
-# LGA filter for queries below. Set LGA_CODE in .env (e.g. '346' for Greater
-# Shepparton, '300' for Alpine). Default empty so adopters configure explicitly.
+# LGA filter for queries below. Set LGA_CODE in .env to your council's 3-digit
+# Victorian LGA code (see https://www.land.vic.gov.au). Default empty so adopters
+# must configure explicitly rather than inherit any council's code.
 LGA_CODE = os.getenv('LGA_CODE', '')
 
 # Setup logging

@@ -2,6 +2,7 @@
 AI-Powered Error Recovery System for M1 Validation
 Provides intelligent suggestions for fixing validation errors
 """
+import os
 import re
 import logging
 from typing import Dict, List, Tuple, Optional
@@ -29,7 +30,7 @@ class AIErrorRecovery:
                 'pattern': r'Property.*not found',
                 'solutions': [
                     'Verify the property number exists in VicMap',
-                    'Check if using correct LGA code (346 for Greater Shepparton)',
+                    'Check that lga_code matches your configured LGA_CODE',
                     'Use property PFI instead of property number if available'
                 ],
                 'auto_fix': self._fix_property_not_found
@@ -108,11 +109,11 @@ class AIErrorRecovery:
             }
         }
         
-        # LGA code mappings for common errors
-        self.lga_mappings = {
-            '328': '346',  # Common mistake - using old LGA code
-            '300': '346',  # Another common mistake
-        }
+        # The council's own LGA code, taken from configuration. A generic tool
+        # cannot know any council's "correct" Victorian LGA code, so we never
+        # hardcode one and never auto-rewrite between codes. We only flag a
+        # record whose lga_code doesn't match the configured LGA_CODE.
+        self.expected_lga_code = os.getenv("LGA_CODE", "")
     
     def analyze_error(self, error_message: str, record: Dict) -> Dict[str, any]:
         """
@@ -175,24 +176,33 @@ class AIErrorRecovery:
             suggested_changes['new_road'] = 'Y'
             suggested_changes['_explanation'] = 'Added new_road flag for new road/locality combination'
         
-        # Check for LGA code issues
+        # Flag (don't silently rewrite) an lga_code that doesn't match the
+        # configured LGA_CODE. Only meaningful when LGA_CODE is set.
         lga_code = record.get('lga_code')
-        if lga_code in self.lga_mappings:
-            suggested_changes['lga_code'] = self.lga_mappings[lga_code]
-            suggested_changes['_explanation'] = f'Corrected LGA code from {lga_code} to {self.lga_mappings[lga_code]}'
-        
+        if self.expected_lga_code and lga_code and lga_code != self.expected_lga_code:
+            suggested_changes['lga_code'] = self.expected_lga_code
+            suggested_changes['_explanation'] = (
+                f'lga_code {lga_code} does not match the configured LGA_CODE '
+                f'{self.expected_lga_code}'
+            )
+
         return suggested_changes
-    
+
     def _fix_property_not_found(self, record: Dict, error_message: str) -> Dict[str, str]:
         """Auto-fix property not found issues"""
         suggested_changes = {}
-        
-        # Check LGA code
+
+        # Flag an lga_code that doesn't match the configured LGA_CODE.
         lga_code = record.get('lga_code')
-        if lga_code in self.lga_mappings:
-            suggested_changes['lga_code'] = self.lga_mappings[lga_code]
-            suggested_changes['_explanation'] = f'Corrected LGA code from {lga_code} to {self.lga_mappings[lga_code]}'
-        
+        if self.expected_lga_code and lga_code and lga_code != self.expected_lga_code:
+            suggested_changes['lga_code'] = self.expected_lga_code
+            suggested_changes['_explanation'] = (
+                f'lga_code {lga_code} does not match the configured LGA_CODE '
+                f'{self.expected_lga_code}'
+            )
+
+        return suggested_changes
+
     def _fix_invalid_edit_code(self, record: Dict, error_message: str) -> Dict[str, str]:
         """Auto-fix invalid edit code issues"""
         suggested_changes = {}
@@ -436,7 +446,7 @@ class AIErrorRecovery:
             report['suggestions'].append("Consider adding 'new_road' flag for new road/locality combinations")
         
         if report['error_types'].get('property_not_found', 0) > 0:
-            report['suggestions'].append("Verify LGA codes are correct (should be 346 for Greater Shepparton)")
+            report['suggestions'].append("Verify lga_code on each record matches your configured LGA_CODE")
         
         if report['auto_fixable'] > 0:
             report['suggestions'].append(f"{report['auto_fixable']} errors can be auto-fixed")

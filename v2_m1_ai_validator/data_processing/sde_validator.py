@@ -75,8 +75,9 @@ class ReadOnlySDEHelper:
 
     Usage::
 
-        sde = ReadOnlySDEHelper()
-        res = sde.check_road_locality_exists("WELLS ST", "LONG GULLY", "346")
+        sde = ReadOnlySDEHelper()                 # reads creds + DB from env
+        lga = os.getenv("LGA_CODE")               # YOUR council's LGA code
+        res = sde.check_road_locality_exists("MAIN STREET", "EXAMPLE LOCALITY", lga)
         if not res["exists"]:
             ...  # row would be rejected by VES
     """
@@ -124,6 +125,11 @@ class ReadOnlySDEHelper:
             "locality_name": "LOCALITY",  # NOT "locality_name" — SDE shorter
             "lga_code": "LGA_CODE",
             "is_primary": "IS_PRIMARY",
+            # COMPLEX holds the complex-site NAME (e.g. 'KIALLA GARDENS') when
+            # the address belongs to a managed complex site, else NULL. A
+            # non-empty value means an LGA M1 cannot alter it — see
+            # check_complex_address.
+            "complex": "COMPLEX",
         }
         self.col_property = col_property or {
             "table": "[SDE].[SDEADMIN].[PROPERTY_MP]",
@@ -468,3 +474,135 @@ class ReadOnlySDEHelper:
         if not rows:
             return {"inside": None, "reason": "property not found"}
         return {"inside": bool(rows[0][0]), "reason": None}
+
+    # ------------------------------------------------------------------ #
+    # Additional spec-grounded checks (VES "common load report messages") #
+    # ------------------------------------------------------------------ #
+
+    def count_properties_for_parcel(
+        self,
+        parcel_pfi: str,
+        lga_code: str,
+        *,
+        by_spi: bool = False,
+    ) -> dict[str, Any]:
+        """How many distinct properties does this parcel link to (spatially)?
+
+        VES message: "Cannot Determine Property Pfi > 1 Property Found For
+        Parcel Identifier". The doc rule is explicit: if one parcel is linked
+        to 2+ properties you *cannot* use the parcel identifier in the M1.
+
+        This is also the deterministic, per-row cause behind the
+        parent-re-add anti-pattern: a subdivided parent's old parcel now
+        spatially overlaps many child properties, so the count comes back
+        high. Returns the count so the caller can decide.
+
+        Set ``by_spi=True`` to identify the parcel by PARCEL_SPI instead of
+        PARCEL_PFI (``parcel_pfi`` then carries the SPI string).
+        """
+        ident = parcel_pfi
+        if not ident:
+            return {"count": 0, "exists": False, "reason": "parcel id empty"}
+
+        pc = self.col_parcel
+        pr = self.col_property
+        key_col = pc["parcel_spi"] if by_spi else pc["parcel_pfi"]
+        # CTE grabs the parcel polygon, then COUNT(DISTINCT) the properties
+        # whose polygon intersects it. Kept as WITH/SELECT for the read guard.
+        query = (
+            "WITH parcel_geom AS ("
+            f"  SELECT TOP 1 {pc['shape']} AS shape "
+            f"  FROM {pc['table']} "
+            f"  WHERE {key_col} = ? AND {pc['lga_code']} = ?"
+            ") "
+            f"SELECT COUNT(DISTINCT pr.{pr['pfi']}) "
+            f"FROM {pr['table']} pr, parcel_geom pg "
+            f"WHERE pr.{pr['lga_code']} = ? "
+            f"  AND pr.{pr['shape']}.STIntersects(pg.shape) = 1"
+        )
+        rows = self._safe_execute(query, (ident, lga_code, lga_code))
+        count = int(rows[0][0]) if rows and rows[0][0] is not None else 0
+        return {
+            "count": count,
+            "exists": count > 0,
+            "multiple": count > 1,
+            "reason": (
+                "parcel links to 2+ properties — cannot use the parcel "
+                "identifier in an M1" if count > 1 else None
+            ),
+        }
+
+    def check_prop_pfi_exists(
+        self,
+        prop_pfi: str,
+        lga_code: str,
+    ) -> dict[str, Any]:
+        """Does this property PFI exist in Vicmap PROPERTY_MP for this LGA?
+
+        Catches VES message "Property Identifier has no matches" (e.g. the M1
+        used a view_pfi or a stale prop_pfi).
+        """
+        if not prop_pfi:
+            return {"exists": None, "reason": "property_pfi empty"}
+
+        p = self.col_property
+        query = (
+            f"SELECT TOP 1 {p['pfi']} FROM {p['table']} "
+            f"WHERE {p['pfi']} = ? AND {p['lga_code']} = ?"
+        )
+        rows = self._safe_execute(query, (prop_pfi, lga_code))
+        return {"exists": bool(rows), "reason": None if rows else "prop_pfi not found"}
+
+    def check_complex_address(
+        self,
+        *,
+        address_pfi: str | None = None,
+        propnum: str | None = None,
+        lga_code: str | None = None,
+    ) -> dict[str, Any]:
+        """Is the target address part of a managed complex site?
+
+        VES message: "Complex Address managed by Complex site Manager cannot
+        be altered" — these (retirement villages, caravan parks, prisons,
+        shopping centres, etc.) carry a non-empty ADDRESS.COMPLEX site name
+        and an LGA M1 cannot change them; they must be routed to the Vicmap
+        Helpdesk.
+
+        Identify the address either directly by ``address_pfi`` (preferred,
+        exact) or by ``propnum`` (joins to the property's primary address).
+        Returns ``{'is_complex': bool|None, 'complex_name': str|None}``.
+        """
+        a = self.col_address
+        complex_col = a.get("complex", "COMPLEX")
+
+        if address_pfi:
+            query = (
+                f"SELECT TOP 1 {complex_col} FROM {a['table']} "
+                f"WHERE {a['pfi']} = ?"
+            )
+            rows = self._safe_execute(query, (address_pfi,))
+        elif propnum and lga_code:
+            p = self.col_property
+            query = (
+                f"SELECT TOP 1 a.{complex_col} "
+                f"FROM {p['table']} p "
+                f"JOIN {a['table']} a "
+                f"  ON a.{a['pr_pfi']} = p.{p['pfi']} AND a.{a['is_primary']} = 'Y' "
+                f"WHERE p.{p['propnum']} = ? AND p.{p['lga_code']} = ?"
+            )
+            rows = self._safe_execute(query, (propnum, lga_code))
+        else:
+            return {
+                "is_complex": None,
+                "complex_name": None,
+                "reason": "need address_pfi or (propnum + lga_code)",
+            }
+
+        if not rows:
+            return {"is_complex": None, "complex_name": None, "reason": "address not found"}
+        name = (rows[0][0] or "").strip() if rows[0][0] is not None else ""
+        return {
+            "is_complex": bool(name),
+            "complex_name": name or None,
+            "reason": None,
+        }

@@ -3,6 +3,7 @@ Enhanced M1 Validator V2 - Based on Real M1 Documentation and Training Data
 This version incorporates actual M1 field names, patterns, and common error types
 from the official M1 documentation and training data analysis.
 """
+import os
 import pandas as pd
 import re
 import logging
@@ -129,8 +130,8 @@ class EnhancedM1ValidatorV2:
             },
             'lga_code_mismatch': {
                 'pattern': r'LGA code mismatch',
-                'solution': 'Use correct LGA code (346 for Greater Shepparton)',
-                'auto_fix': {'lga_code': '346'}
+                'solution': 'Set lga_code to your configured LGA_CODE',
+                'auto_fix': None  # generic tool must not rewrite to a hardcoded code
             }
         }
         
@@ -417,10 +418,11 @@ class EnhancedM1ValidatorV2:
             # This is a potential road-locality combination issue
             issues.append("Consider adding 'Y' to new_road field for new road-locality combinations")
         
-        # Check LGA code
+        # Check LGA code against the configured LGA_CODE (no hardcoded value).
+        expected_lga = os.getenv('LGA_CODE', '')
         lga_code = record.get('lga_code', '')
-        if lga_code and lga_code != '346':
-            issues.append(f"LGA code {lga_code} may not be correct for Greater Shepparton (should be 346)")
+        if expected_lga and lga_code and lga_code != expected_lga:
+            issues.append(f"LGA code {lga_code} does not match configured LGA_CODE {expected_lga}")
         
         # Check for missing coordinates when required
         distance_related = record.get('distance_related_flag', '')

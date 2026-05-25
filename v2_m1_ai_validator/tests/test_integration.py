@@ -10,6 +10,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data_processing.validator import M1Validator
 
+# Neutral placeholder LGA code for fixtures (not a real Victorian council code)
+TEST_LGA_CODE = "999"
+
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
@@ -38,7 +41,7 @@ def test_spi_validation():
     
     # Test Case 1: Valid SPI with plan number
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'A',
         'propnum': '12345',
         'spi': '1\\TP446069',
@@ -48,7 +51,7 @@ def test_spi_validation():
     
     # Test Case 2: Valid SPI without plan number
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'A',
         'propnum': '12345',
         'spi': 'PC354544',
@@ -58,7 +61,7 @@ def test_spi_validation():
     
     # Test Case 3: Invalid SPI format
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'A',
         'propnum': '12345',
         'spi': '123-ABC',  # Invalid format
@@ -72,7 +75,7 @@ def test_address_validation():
     
     # Test Case 1: Complete urban address
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'S',
         'house_number_1': '42',
         'road_name': 'High',
@@ -84,7 +87,7 @@ def test_address_validation():
     
     # Test Case 2: Rural address with distance
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'S',
         'road_name': 'High',
         'road_type': 'ROAD',
@@ -99,7 +102,7 @@ def test_address_validation():
     
     # Test Case 3: Incomplete address
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'S',
         'road_name': 'High',  # Missing road_type
         'locality_name': 'Richmond',
@@ -113,7 +116,7 @@ def test_crefno_validation():
     
     # Test Case 1: Valid crefno update
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'C',
         'crefno': 'CR123/456',
         'comments': 'Updated crefno to CR123/456'
@@ -122,7 +125,7 @@ def test_crefno_validation():
     
     # Test Case 2: Missing crefno in comment
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'C',
         'crefno': 'CR789/012',
         'comments': 'Updated reference number'  # Missing explicit crefno
@@ -135,7 +138,7 @@ def test_property_identifiers():
     
     # Test Case 1: Valid property update with all identifiers
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'P',
         'propnum': '12345',
         'property_pfi': '98765',
@@ -146,7 +149,7 @@ def test_property_identifiers():
     
     # Test Case 2: Invalid PFI format
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'P',
         'propnum': '12345',
         'property_pfi': 'ABC123',  # Should be numeric
@@ -160,7 +163,7 @@ def test_multi_assessment():
     
     # Test Case 1: Valid multi-assessment addition
     test_case = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'A',
         'propnum': '12345',
         'spi': '1\\TP446069',
@@ -171,7 +174,7 @@ def test_multi_assessment():
         
     # Test Case 2: Invalid multi-assessment (missing required info)
     test_row = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'A',
         'comments': 'Adding to multi-assessment'  # Missing propnum
     }
@@ -184,7 +187,7 @@ def test_address_update_scenarios():
     
     # Test Case 3: Valid address update
     test_row = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'S',
         'propnum': '12345',
         'property_pfi': '98765',
@@ -202,7 +205,7 @@ def test_address_update_scenarios():
         
     # Test Case 4: Distance-based address without required fields
     test_row = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'S',
         'road_name': 'High Street',
         'locality_name': 'Richmond',
@@ -218,7 +221,7 @@ def test_property_update_scenarios():
     
     # Test Case 5: Valid property update
     test_row = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'P',
         'propnum': '12345',
         'property_pfi': '98765',
@@ -233,7 +236,7 @@ def test_property_update_scenarios():
         
     # Test Case 6: Property update with invalid comment
     test_row = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'P',
         'propnum': '12345',
         'property_pfi': '98765',
@@ -248,7 +251,7 @@ def test_edge_cases():
     
     # Test Case 7: Unknown edit code
     test_row = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'X',
         'comments': 'Test'
     }
@@ -258,7 +261,7 @@ def test_edge_cases():
     
     # Test Case 8: Empty comment
     test_row = {
-        'lga_code': '346',
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'P',
         'propnum': '12345',
         'comments': ''

@@ -14,6 +14,9 @@ from data_processing.validator import M1Validator
 from data_processing.vicmap_validator import VicmapValidator
 from data_processing.comment_analyzer import M1CommentAnalyzer
 
+# Neutral placeholder LGA code for fixtures (not a real Victorian council code)
+TEST_LGA_CODE = "999"
+
 # Mock responses for testing
 MOCK_RESPONSES = {
     'valid_property': {
@@ -21,7 +24,7 @@ MOCK_RESPONSES = {
             'attributes': {
                 'prop_pfi': '12345',
                 'prop_propnum': '98765',
-                'prop_lga_code': '346',
+                'prop_lga_code': TEST_LGA_CODE,
                 'prop_status': 'A'
             }
         }]
@@ -31,7 +34,7 @@ MOCK_RESPONSES = {
             'attributes': {
                 'parcel_pfi': '67890',
                 'parcel_spi': '1\\TP446069',
-                'parcel_lga_code': '346',
+                'parcel_lga_code': TEST_LGA_CODE,
                 'parcel_status': 'A',
                 'parcel_road': 'N'
             }
@@ -45,7 +48,7 @@ MOCK_RESPONSES = {
                 'road_name': 'HIGH',
                 'road_type': 'STREET',
                 'locality_name': 'EXAMPLECITY',
-                'lga_code': '346'
+                'lga_code': TEST_LGA_CODE
             }
         }]
     },
@@ -74,7 +77,7 @@ class TestM1ValidatorFast(unittest.TestCase):
     def test_invalid_edit_code(self):
         """Test handling of invalid edit codes"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'X',  # Invalid
             'comments': 'Test'
         }
@@ -85,7 +88,7 @@ class TestM1ValidatorFast(unittest.TestCase):
     def test_valid_property_update(self):
         """Test valid property update with mocked VicMap"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': '12345',
             'property_pfi': '98765',
@@ -112,7 +115,7 @@ class TestM1ValidatorFast(unittest.TestCase):
         
         for spi in valid_spis:
             row = {
-                'lga_code': '346',
+                'lga_code': TEST_LGA_CODE,
                 'edit_code': 'A',
                 'spi': spi,
                 'propnum': '12345',
@@ -129,7 +132,7 @@ class TestM1ValidatorFast(unittest.TestCase):
         
         # Invalid SPI format
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'A',
             'spi': '123-ABC',  # Invalid
             'propnum': '12345',
@@ -142,7 +145,7 @@ class TestM1ValidatorFast(unittest.TestCase):
     def test_distance_based_address(self):
         """Test distance-based address validation"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'S',
             'road_name': 'High',
             'road_type': 'ROAD',
@@ -298,7 +301,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_special_characters(self):
         """Test handling of special characters"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'S',
             'house_number_1': '42A',
             'road_name': "O'Brien",  # Apostrophe
@@ -317,7 +320,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_null_values(self):
         """Test handling of None/null values"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': None,
             'property_pfi': None,

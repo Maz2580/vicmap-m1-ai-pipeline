@@ -13,6 +13,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data_processing.enhanced_validator import EnhancedM1Validator
 
+# Neutral placeholder LGA code for fixtures (not a real Victorian council code)
+TEST_LGA_CODE = "999"
+
 class TestEnhancedValidator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -22,14 +25,14 @@ class TestEnhancedValidator(unittest.TestCase):
         # Create test M1 data
         cls.test_data = [
             {
-                'lga_code': '346',
+                'lga_code': TEST_LGA_CODE,
                 'edit_code': 'P',
                 'propnum': '112152',
                 'property_pfi': '45124878',
                 'comments': 'Updated property 112152 details'
             },
             {
-                'lga_code': '346',
+                'lga_code': TEST_LGA_CODE,
                 'edit_code': 'S',
                 'house_number_1': '517',
                 'road_name': 'WANDONG',
@@ -38,7 +41,7 @@ class TestEnhancedValidator(unittest.TestCase):
                 'comments': 'Updated address to 517 WANDONG ROAD, WANDONG'
             },
             {
-                'lga_code': '328',  # Wrong LGA code
+                'lga_code': TEST_LGA_CODE,
                 'edit_code': 'E',
                 'propnum': '999999',
                 'road_name': 'NEW_ROAD',
@@ -85,7 +88,7 @@ class TestEnhancedValidator(unittest.TestCase):
     def test_field_mapping_analysis(self):
         """Test field mapping analysis"""
         record = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': '112152',
             'house_nbr_1': '123',  # Wrong field name
@@ -107,7 +110,7 @@ class TestEnhancedValidator(unittest.TestCase):
     def test_error_recovery(self):
         """Test error recovery system"""
         record = {
-            'lga_code': '328',  # Wrong LGA code
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'S',
             'road_name': 'NEW_ROAD',
             'road_type': 'STREET',
@@ -127,7 +130,7 @@ class TestEnhancedValidator(unittest.TestCase):
     def test_comment_enhancement(self):
         """Test comment enhancement"""
         record = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': '112152',
             'comments': 'Update property'  # Basic comment
@@ -160,7 +163,7 @@ class TestEnhancedValidator(unittest.TestCase):
                 'record': self.test_data[1],
                 'issues': ['Property not found'],
                 'suggestions': ['Check property number'],
-                'auto_fixes': {'lga_code': '346'},
+                'auto_fixes': {'lga_code': TEST_LGA_CODE},
                 'enhanced_comment': 'Enhanced comment',
                 'field_mappings': {},
                 'validation_passed': False

@@ -91,7 +91,7 @@ def demo_error_recovery():
                 f"{API_BASE_URL}/api/error-recovery",
                 json={
                     "error_message": error,
-                    "record_data": {"lga_code": "346", "road_name": "TEST ROAD"}
+                    "record_data": {"lga_code": "999", "road_name": "TEST ROAD"}
                 },
                 timeout=10
             )

@@ -14,6 +14,9 @@ from data_processing.validator import M1Validator
 from data_processing.vicmap_validator import VicmapValidator
 from data_processing.comment_analyzer import M1CommentAnalyzer
 
+# Neutral placeholder LGA code for fixtures (not a real Victorian council code)
+TEST_LGA_CODE = "999"
+
 class TestM1Validator(unittest.TestCase):
     """Tests for M1Validator class"""
     
@@ -32,7 +35,7 @@ class TestM1Validator(unittest.TestCase):
     def test_invalid_edit_code(self):
         """Test handling of invalid edit codes"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'X',  # Invalid
             'comments': 'Test'
         }
@@ -43,7 +46,7 @@ class TestM1Validator(unittest.TestCase):
     def test_valid_property_update(self):
         """Test valid property update with all required fields"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': '12345',
             'property_pfi': '98765',
@@ -65,7 +68,7 @@ class TestM1Validator(unittest.TestCase):
         valid_spis = ['1\\TP446069', 'PC354544', '2\\PS904644']
         for spi in valid_spis:
             row = {
-                'lga_code': '346',
+                'lga_code': TEST_LGA_CODE,
                 'edit_code': 'A',
                 'spi': spi,
                 'propnum': '12345',
@@ -77,7 +80,7 @@ class TestM1Validator(unittest.TestCase):
         
         # Invalid SPI format
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'A',
             'spi': '123-ABC',  # Invalid
             'propnum': '12345',
@@ -89,7 +92,7 @@ class TestM1Validator(unittest.TestCase):
     def test_distance_based_address_validation(self):
         """Test distance-based address requires coordinates"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'S',
             'road_name': 'High',
             'road_type': 'ROAD',
@@ -221,7 +224,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_special_characters_in_address(self):
         """Test handling of special characters in address"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'S',
             'house_number_1': '42A',
             'road_name': "O'Brien",  # Apostrophe
@@ -237,7 +240,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_very_long_comment(self):
         """Test handling of very long comments"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': '12345',
             'comments': 'A' * 10000  # 10k characters
@@ -250,7 +253,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_null_values(self):
         """Test handling of None/null values"""
         row = {
-            'lga_code': '346',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': None,
             'property_pfi': None,

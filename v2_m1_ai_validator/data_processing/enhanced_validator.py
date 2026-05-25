@@ -427,7 +427,7 @@ class EnhancedM1Validator:
         lga_issues = sum(1 for result in validation_results 
                         if any('lga' in issue.lower() for issue in result['issues']))
         if lga_issues > 0:
-            suggestions.append(f"{lga_issues} records have LGA code issues - verify using 346 for Greater Shepparton")
+            suggestions.append(f"{lga_issues} records have LGA code issues - verify each lga_code matches your configured LGA_CODE")
         
         road_issues = sum(1 for result in validation_results 
                          if any('road' in issue.lower() for issue in result['issues']))

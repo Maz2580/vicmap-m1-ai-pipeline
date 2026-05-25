@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from v2_m1_ai_validator.data_processing.database_helper import InfoProdDatabaseHelper
-from v2_m1_ai_validator.data_processing.rule_engine import RuleEngine
+from v2_m1_ai_validator.data_processing.rule_engine import RuleEngine, analyze_batch
 from v2_m1_ai_validator.data_processing.sde_validator import ReadOnlySDEHelper
 from v2_m1_ai_validator.providers import get_provider, LLMProvider
 
@@ -96,6 +96,42 @@ logger.info(
     _primary_provider.model,
     f", fallback={_fallback_provider.name}" if _fallback_provider else "",
 )
+
+# Noise columns that never help the LLM judge a row — dropping them keeps the
+# prompt focused without hiding signal. Everything else on the row is kept.
+_LLM_DROP_COLUMNS = {"date", "pozi_map"}
+
+
+def _clean_value(val: Any) -> str:
+    """Stringify a CSV cell, dropping NaN/None and Pozi's spurious '.0' on
+    integer-valued IDs (e.g. '172249.0' -> '172249') without corrupting real
+    decimals (e.g. '100.05' stays '100.05')."""
+    if val is None:
+        return ""
+    s = str(val).strip()
+    if s.lower() == "nan":
+        return ""
+    if s.endswith(".0") and s[:-2].isdigit():
+        s = s[:-2]
+    return s
+
+
+def _compact_row(row_dict: dict[str, Any]) -> dict[str, str]:
+    """Build the dict handed to the LLM: every populated, non-noise column.
+
+    Passing the full row (minus empty cells and pure-noise columns) means the
+    model judges with the same context the rule engine had, instead of a
+    handful of pre-selected fields.
+    """
+    compact: dict[str, str] = {}
+    for key, raw in row_dict.items():
+        if key in _LLM_DROP_COLUMNS:
+            continue
+        cleaned = _clean_value(raw)
+        if cleaned:
+            compact[key] = cleaned
+    return compact
+
 
 class SmartOpenAIValidator:
     """Smart M1 validator with a deterministic rule engine in front of the LLM.
@@ -185,7 +221,7 @@ class SmartOpenAIValidator:
                     sample = {
                         'row_index': i,
                         'category': category,
-                        'propnum': str(df.iloc[i].get('propnum', '')).replace('.0', ''),
+                        'propnum': _clean_value(df.iloc[i].get('propnum', '')),
                         'edit_code': str(df.iloc[i].get('edit_code', '')),
                         'comments': str(df.iloc[i].get('comments', ''))[:150] + '...' if len(str(df.iloc[i].get('comments', ''))) > 150 else str(df.iloc[i].get('comments', '')),
                         'spi': str(df.iloc[i].get('spi', '')),
@@ -371,6 +407,7 @@ class SmartOpenAIValidator:
         self,
         row: pd.Series,
         row_index: int,
+        batch_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Validate a single M1 row using the two-stage pipeline.
 
@@ -387,10 +424,10 @@ class SmartOpenAIValidator:
         verified.
         """
         row_dict = row.to_dict() if hasattr(row, "to_dict") else dict(row)
-        propnum_clean = str(row.get("propnum", "")).replace(".0", "").strip()
+        propnum_clean = _clean_value(row.get("propnum", ""))
 
         # Stage 1: deterministic rules.
-        rule_result = self.rule_engine.evaluate(row_dict)
+        rule_result = self.rule_engine.evaluate(row_dict, batch_context=batch_context)
         self.rule_stats[rule_result.verdict.lower()] += 1
 
         if rule_result.is_terminal:
@@ -421,16 +458,11 @@ class SmartOpenAIValidator:
                 ],
             }
 
-        # Stage 2: LLM call for AMBIGUOUS rows.
-        row_data = {
-            "row_index": row_index,
-            "propnum": propnum_clean,
-            "edit_code": str(row.get("edit_code", "")),
-            "comments": str(row.get("comments", "")),
-            "spi": str(row.get("spi", "")),
-            "road_name": str(row.get("road_name", "")),
-            "locality_name": str(row.get("locality_name", "")),
-        }
+        # Stage 2: LLM call for AMBIGUOUS rows. Pass the FULL row (every
+        # populated column) so the model judges with complete context rather
+        # than a handful of pre-selected fields.
+        row_data = {"row_index": row_index, **_compact_row(row_dict)}
+        row_data["propnum"] = propnum_clean
         rule_findings = [
             {"field": i.field, "severity": i.severity, "message": i.message}
             for i in rule_result.issues
@@ -461,6 +493,16 @@ class SmartOpenAIValidator:
             "rural-address detection) have already been verified before you. "
             "Focus on judgement calls the rules can't make: ambiguous "
             "comment fields, plausible warnings, edge cases.\n\n"
+            "You receive the FULL M1 row (all populated columns). Edit codes: "
+            "B=remove/retire base property; C=update or null the parcel "
+            "Crefno only; E=update both property and address details; "
+            "P=update property details only; S=update address details only; "
+            "Z=remove a secondary address or downgrade a distance-based "
+            "address to urban; A=add a property to a multi-assessment; "
+            "R=remove a property from a multi-assessment (the last member "
+            "cannot be removed). Note: for edit_code=C an empty crefno is "
+            "valid (it nulls the Crefno) — do not reject C solely for a blank "
+            "crefno.\n\n"
             "Learned reject signals:\n"
             + "\n".join(f"  - {p}" for p in reject_patterns)
             + "\n\nLearned accept signals:\n"
@@ -540,32 +582,48 @@ class SmartOpenAIValidator:
         """Validate all rows using smart OpenAI approach"""
         logger.info("Starting smart OpenAI validation of all rows...")
         
-        df = pd.read_csv(csv_file)
+        df = pd.read_csv(csv_file, dtype=str)
         validation_results = []
-        
+
+        # File-level pre-pass: compute the multi-assessment fan-out map ONCE
+        # over the whole file so the cross-row parent-re-add rule can fire.
+        # This is the only signal that can't be derived from a single row.
+        batch_context = analyze_batch([r.to_dict() for _, r in df.iterrows()])
+        fanout_flagged = sum(
+            1 for v in batch_context.get("fanout", {}).values()
+            if v.get("count", 0) >= 3
+        )
+        logger.info(
+            "Batch pre-pass: %d distinct A-propnums, %d with fan-out >= 3 "
+            "(parent-re-add candidates).",
+            len(batch_context.get("fanout", {})), fanout_flagged,
+        )
+
         # Process rows in smaller batches to avoid token limits
         batch_size = 10
         total_batches = (len(df) + batch_size - 1) // batch_size
-        
+
         for batch_idx in range(total_batches):
             start_idx = batch_idx * batch_size
             end_idx = min((batch_idx + 1) * batch_size, len(df))
-            
+
             logger.info(f"Processing batch {batch_idx + 1}/{total_batches} (rows {start_idx}-{end_idx})")
-            
+
             batch_df = df.iloc[start_idx:end_idx]
-            
+
             for idx, row in batch_df.iterrows():
                 try:
-                    result = self.validate_single_row_with_openai(row, idx)
+                    result = self.validate_single_row_with_openai(
+                        row, idx, batch_context=batch_context,
+                    )
                     validation_results.append(result)
                 except Exception as e:
                     logger.error(f"Error validating row {idx}: {e}")
                     # Add fallback result
                     fallback_result = self._fallback_single_validation({
                         'row_index': idx,
-                        'propnum': str(row.get('propnum', '')).replace('.0', ''),
-                        'comments': str(row.get('comments', ''))
+                        'propnum': _clean_value(row.get('propnum', '')),
+                        'comments': _clean_value(row.get('comments', ''))
                     })
                     validation_results.append(fallback_result)
         

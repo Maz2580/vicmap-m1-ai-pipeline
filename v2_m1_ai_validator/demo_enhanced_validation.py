@@ -12,18 +12,21 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from data_processing.enhanced_validator import EnhancedM1Validator
 
+# Neutral placeholder LGA code for demo fixtures (not a real Victorian council code)
+TEST_LGA_CODE = "999"
+
 def create_sample_m1_data():
     """Create sample M1 data for demonstration"""
     sample_data = [
         {
-            'lga_code': '000',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'P',
             'propnum': '112152',
             'property_pfi': '45124878',
             'comments': 'Updated property 112152 details'
         },
         {
-            'lga_code': '000',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'S',
             'house_number_1': '517',
             'road_name': 'WANDONG',
@@ -32,7 +35,7 @@ def create_sample_m1_data():
             'comments': 'Updated address to 517 WANDONG ROAD, WANDONG'
         },
         {
-            'lga_code': '328',  # Wrong LGA code - will trigger error
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'E',
             'propnum': '999999',
             'road_name': 'NEW_ROAD',
@@ -41,7 +44,7 @@ def create_sample_m1_data():
             'comments': 'Test record with issues'
         },
         {
-            'lga_code': '000',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'A',
             'propnum': '107551',
             'spi': '90\\PS844324',
@@ -49,7 +52,7 @@ def create_sample_m1_data():
             'comments': 'Adding property to multi-assessment'
         },
         {
-            'lga_code': '000',
+            'lga_code': TEST_LGA_CODE,
             'edit_code': 'C',
             'crefno': '12345',
             'spi': '1\\TP446069',
@@ -229,7 +232,7 @@ def demonstrate_ai_features():
     print("\n3. Error Recovery")
     print("-" * 30)
     test_record = {
-        'lga_code': '328',  # Wrong LGA code
+        'lga_code': TEST_LGA_CODE,
         'edit_code': 'S',
         'road_name': 'NEW_ROAD',
         'road_type': 'STREET',

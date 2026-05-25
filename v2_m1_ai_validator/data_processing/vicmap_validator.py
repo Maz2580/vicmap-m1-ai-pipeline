@@ -12,8 +12,8 @@ from .feature_layer import FeatureLayer
 logger = logging.getLogger(__name__)
 
 class VicmapValidator:
-    # Set LGA_CODE env var to your council's Victorian LGA code (e.g. '346' for
-    # Greater Shepparton, '300' for Alpine). Default empty — adopters must set this.
+    # Set LGA_CODE env var to your council's 3-digit Victorian LGA code (find it
+    # at https://www.land.vic.gov.au). Default empty — adopters must set this.
     LGA_CODE = os.getenv('LGA_CODE', '')
     
     # REST API endpoints
